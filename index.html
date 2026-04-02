@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <link rel="icon" type="image/png" href="favicon.png">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
   <title>Flip 7 - Compteur de points</title>
   <style>
     :root{
@@ -28,7 +28,7 @@
       background:linear-gradient(180deg,#07101c 0%, #0f172a 45%, #111827 100%);
       color:var(--text);
       font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
-      overflow-x:hidden;
+      overflow-x:clip;
     }
     body{min-height:100dvh}
     .app{
@@ -77,6 +77,8 @@
     .btn-success{background:linear-gradient(135deg,#16a34a,#15803d)}
     .btn-danger{background:linear-gradient(135deg,#b91c1c,#991b1b)}
     .btn-neutral{background:#475569}
+    .btn-home{background:linear-gradient(135deg,#78350f,#92400e)}
+    .btn-prev-round{background:#475569}
     .player-count-btns{
       display:flex;
       flex-wrap:wrap;
@@ -347,6 +349,87 @@
       .leaderboard-grid{grid-template-columns:1fr}
       .leaderboard-item{font-size:.85rem; padding:4px 6px}
     }
+
+    .detail-section{
+      margin-top:12px;
+      background:rgba(15,23,42,.8);
+      border:1px solid rgba(51,65,85,.6);
+      border-radius:14px;
+    }
+    .detail-title{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:10px 14px;
+      cursor:pointer;
+      user-select:none;
+      font-weight:800;
+      font-size:.95rem;
+      color:#94a3b8;
+      transition:background .15s;
+      border-radius:14px;
+    }
+    .detail-title:hover{background:rgba(51,65,85,.2)}
+    .detail-chevron{font-size:.75rem; transition:transform .2s; color:#64748b}
+    .detail-chevron.open{transform:rotate(90deg)}
+    .detail-body{padding:10px 12px 12px; min-width:0}
+    .detail-table-outer{
+      position:relative;
+      width:100%;
+      min-width:0;
+    }
+    .detail-table-wrap{
+      position:relative;
+      overflow-x:scroll;
+      overflow-y:visible;
+      -webkit-overflow-scrolling:touch;
+      scrollbar-width:thin;
+      scrollbar-color:rgba(100,116,139,.6) transparent;
+      /* Force le scroll à rester dans ce bloc */
+      max-width:100%;
+      box-sizing:border-box;
+    }
+    .detail-table-wrap::-webkit-scrollbar{height:6px}
+    .detail-table-wrap::-webkit-scrollbar-track{background:rgba(15,23,42,.4); border-radius:3px}
+    .detail-table-wrap::-webkit-scrollbar-thumb{background:rgba(100,116,139,.6); border-radius:3px}
+    .detail-table{
+      width:max-content;
+      border-collapse:collapse;
+      font-size:.82rem;
+    }
+    .detail-table th{
+      padding:5px 10px;
+      text-align:center;
+      font-weight:800;
+      color:#64748b;
+      border-bottom:1px solid rgba(51,65,85,.6);
+      white-space:nowrap;
+    }
+    .detail-table th.player-th{
+      max-width:90px;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .detail-table td{
+      padding:5px 10px;
+      text-align:center;
+      border-bottom:1px solid rgba(51,65,85,.25);
+      color:#e5e7eb;
+      font-weight:700;
+    }
+    .detail-table td.round-label{
+      color:#64748b;
+      font-weight:800;
+      white-space:nowrap;
+    }
+    .detail-table td.cumul{
+      color:#94a3b8;
+      font-size:.78rem;
+    }
+    .detail-table tr.current-round td{
+      background:rgba(37,99,235,.12);
+    }
+    .detail-table tr:last-child td{border-bottom:none}
   </style>
 </head>
 <body>
@@ -411,8 +494,8 @@
         <div class="winner-title" id="winnerText"></div>
         <div class="winner-actions">
           <button class="btn btn-success" id="restartSameBtn">Recommencer avec les mêmes joueurs</button>
-          <button class="btn btn-neutral" id="backHomeBtn">Revenir à l'accueil</button>
-          <button class="btn btn-danger" id="cancelRoundBtn">Annuler dernière manche</button>
+          <button class="btn btn-home" id="backHomeBtn">Revenir à l'accueil</button>
+          <button class="btn btn-prev-round" id="cancelRoundBtn">Manche précédente</button>
         </div>
       </div>
 
@@ -432,7 +515,21 @@
 
         <div style="text-align:center; margin-top:16px; display:flex; flex-wrap:wrap; gap:10px; justify-content:center;">
           <button class="btn btn-primary" id="nextRoundBtnBottom">Manche suivante</button>
-          <button class="btn btn-danger" id="cancelRoundBtnBottom">Annuler dernière manche</button>
+          <button class="btn btn-prev-round" id="cancelRoundBtnBottom">Manche précédente</button>
+        </div>
+
+        <div class="detail-section" id="detailSection">
+          <div class="detail-title" id="detailToggle">
+            <span>📋 Détail des manches</span>
+            <span class="detail-chevron" id="detailChevron">▶</span>
+          </div>
+          <div class="detail-body hidden" id="detailBody">
+            <div class="detail-table-outer">
+              <div class="detail-table-wrap">
+                <table class="detail-table" id="detailTable"></table>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -461,12 +558,18 @@
     let players = [];
     let gameOver = false;
     let round = 1;
+    // roundPending[i] = score saisi pour la manche en cours pour le joueur i (null = pas saisi)
     let roundPending = [];
     let knownPlayers = JSON.parse(localStorage.getItem('flip7_known_players') || '[]');
     let knownPlayersUsage = JSON.parse(localStorage.getItem('flip7_known_usage') || '{}');
     let trashMode = false;
     let sortByRecent = false;
-    let lastRoundScores = [];
+
+    // Historique complet : roundHistory[m][i] = score du joueur i à la fin de la manche m (0-indexed)
+    // roundHistory[m] est un tableau de scores CUMULÉS après la manche m
+    let roundHistory = [];
+    // roundInputHistory[m][i] = valeur saisie pour le joueur i à la manche m
+    let roundInputHistory = [];
 
     // 18 couleurs joueurs — teintes vives bien distinctes + blanc/gris pour compléter
     const PLAYER_COLORS = [
@@ -517,10 +620,7 @@
       clearInterval(chronoInterval);
       updateChronoDisplay();
       chronoInterval = setInterval(() => {
-        if (!chronoPaused) {
-          chronoSeconds++;
-          updateChronoDisplay();
-        }
+        if (!chronoPaused) { chronoSeconds++; updateChronoDisplay(); }
       }, 1000);
     }
 
@@ -534,6 +634,340 @@
       chronoPaused = !chronoPaused;
       updateChronoDisplay();
     });
+
+    // ---- Saisie des scores ----
+
+    // Score de base du joueur i = scores cumulés jusqu'à la manche précédente
+    function baseScore(i) {
+      if (round <= 1) return 0;
+      return roundHistory[round - 2] ? (roundHistory[round - 2][i] ?? 0) : 0;
+    }
+
+    // Score total actuel du joueur i (base + pending si saisi)
+    function currentScore(i) {
+      const pending = roundPending[i];
+      return baseScore(i) + (pending !== null && pending !== undefined ? pending : 0);
+    }
+
+    function updateScores() {
+      players.forEach((_, i) => {
+        const el = document.getElementById(`score-${i}`);
+        if (el) el.textContent = currentScore(i);
+      });
+    }
+
+    function setInputsDisabled(disabled) {
+      players.forEach((_, i) => {
+        const input = document.getElementById(`round-${i}`);
+        const addBtn = document.querySelector(`[onclick="addRoundPoints(${i})"]`);
+        const subBtn = document.querySelector(`[onclick="subtractRoundPoints(${i})"]`);
+        if (input) { input.disabled = disabled; input.style.opacity = disabled ? '0.4' : ''; }
+        if (addBtn) { addBtn.disabled = disabled; addBtn.style.opacity = disabled ? '0.4' : ''; }
+        if (subBtn) { subBtn.disabled = disabled; subBtn.style.opacity = disabled ? '0.4' : ''; }
+      });
+    }
+
+    function focusNext(index) {
+      const next = document.getElementById(`round-${index + 1}`);
+      if (next && !next.disabled) { next.focus(); next.select(); }
+    }
+
+    window.applyRoundPoints = function(index, skipFocus) {
+      if (gameOver) return;
+      const input = document.getElementById(`round-${index}`);
+      const value = parseInt(input.value, 10);
+      if (Number.isNaN(value)) return;
+      // Conserver la valeur dans le champ (ne pas effacer)
+      roundPending[index] = value;
+      updateScores();
+      if (!skipFocus) focusNext(index);
+    };
+
+    window.addRoundPoints = function(index) {
+      applyRoundPoints(index, false);
+    };
+
+    window.subtractRoundPoints = function(index) {
+      if (gameOver) return;
+      const input = document.getElementById(`round-${index}`);
+      const value = parseInt(input.value, 10);
+      if (Number.isNaN(value)) return;
+      roundPending[index] = -value;
+      // Afficher la valeur négative dans le champ
+      input.value = -value;
+      updateScores();
+      focusNext(index);
+    };
+
+    function renderPlayers() {
+      playersGrid.innerHTML = '';
+      players.forEach((player, index) => {
+        const color = PLAYER_COLORS[index % PLAYER_COLORS.length];
+        const card = document.createElement('div');
+        card.className = 'player-card';
+        // Restaurer la valeur saisie pour cette manche si elle existe
+        const pendingVal = roundPending[index];
+        const inputVal = (pendingVal !== null && pendingVal !== undefined) ? pendingVal : '';
+        card.innerHTML = `
+          <div class="round-row">
+            <div class="player-name" style="color:${color}" title="${player.name}">${player.name}</div>
+            <input class="round-input" type="number" step="1" id="round-${index}" placeholder="Points" value="${inputVal}">
+            <button class="small-btn small-add" type="button" onclick="addRoundPoints(${index})">+</button>
+            <button class="small-btn small-sub" type="button" onclick="subtractRoundPoints(${index})">-</button>
+            <div class="player-score" id="score-${index}">${currentScore(index)}</div>
+          </div>
+        `;
+        playersGrid.appendChild(card);
+        const input = card.querySelector(`#round-${index}`);
+        input.addEventListener('focus', () => input.select());
+        input.addEventListener('input', () => {
+          const val = parseInt(input.value, 10);
+          const el = document.getElementById(`score-${index}`);
+          if (!el) return;
+          if (Number.isNaN(val)) {
+            el.textContent = baseScore(index);
+          } else {
+            el.textContent = baseScore(index) + val;
+          }
+        });
+        input.addEventListener('keydown', (e) => {
+          if (e.key !== 'Enter') return;
+          e.preventDefault();
+          applyRoundPoints(index, true);
+          focusNext(index);
+        });
+      });
+      if (gameOver) setInputsDisabled(true);
+    }
+
+    // ---- Leaderboard ----
+
+    let leaderboardSortAlpha = false;
+
+    function updateLeaderboard() {
+      const byScore = [...players].sort((a, b) => currentScore(players.indexOf(b)) - currentScore(players.indexOf(a)));
+      const rankMap = new Map();
+      byScore.forEach((p, i) => rankMap.set(p, i + 1));
+      const displayed = leaderboardSortAlpha
+        ? [...players].sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }))
+        : byScore;
+      leaderboardList.innerHTML = '';
+      displayed.forEach((player) => {
+        const item = document.createElement('div');
+        item.className = 'leaderboard-item';
+        const score = currentScore(players.indexOf(player));
+        const pct = Math.min(Math.max(score, 0), 200) / 2;
+        const playerColor = PLAYER_COLORS[players.indexOf(player) % PLAYER_COLORS.length];
+        const rank = rankMap.get(player);
+        item.innerHTML = `
+          <div class="leaderboard-progress" style="width:${pct}%"></div>
+          <span class="leaderboard-rank">${rank}.</span>
+          <span class="leaderboard-name" style="color:${playerColor}">${player.name}</span>
+          <span class="leaderboard-score">${score}</span>
+        `;
+        leaderboardList.appendChild(item);
+      });
+    }
+
+    function updateScoresAndLeaderboard() {
+      updateScores();
+      updateLeaderboard();
+      const body = document.getElementById('detailBody');
+      if (body && !body.classList.contains('hidden')) updateDetailTable();
+    }
+
+    document.getElementById('leaderboardTitle').addEventListener('click', () => {
+      leaderboardSortAlpha = !leaderboardSortAlpha;
+      updateLeaderboard();
+    });
+
+    // ---- Navigation entre manches ----
+
+    function checkWinnerAtEndOfRound() {
+      const eligible = players.filter((_, i) => currentScore(i) >= 200);
+      if (!eligible.length) return false;
+      const scores = players.map((_, i) => currentScore(i));
+      const topScore = Math.max(...scores);
+      const winners = players.filter((_, i) => scores[i] === topScore);
+      gameOver = true;
+      stopChrono();
+      setInputsDisabled(true);
+      const now = Date.now();
+      players.forEach(p => {
+        if (!knownPlayers.includes(p.name)) knownPlayers.push(p.name);
+        knownPlayersUsage[p.name] = now;
+      });
+      localStorage.setItem('flip7_known_players', JSON.stringify(knownPlayers));
+      localStorage.setItem('flip7_known_usage', JSON.stringify(knownPlayersUsage));
+      winnerPanel.classList.remove('hidden');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      nextRoundBtnBottom.classList.add('hidden');
+      if (winners.length === 1) {
+        winnerText.textContent = `🎉 Partie terminée. Gagnant : ${winners[0].name} avec ${topScore} points !`;
+      } else {
+        const names = winners.map(w => w.name).join(', ');
+        winnerText.textContent = `🎉 Partie terminée. Égalité ! Gagnants : ${names} avec ${topScore} points.`;
+      }
+      gameStatus.textContent = 'La partie est terminée.';
+      return true;
+    }
+
+    function nextRound() {
+      if (gameOver) return;
+      // Appliquer les valeurs encore dans les champs non validés (priorité au champ courant)
+      players.forEach((_, i) => {
+        const input = document.getElementById(`round-${i}`);
+        const val = parseInt(input?.value, 10);
+        if (!Number.isNaN(val)) roundPending[i] = val;
+      });
+
+      // Sauvegarder les inputs de cette manche
+      roundInputHistory[round - 1] = [...roundPending];
+
+      // Recalculer roundHistory en cascade à partir de cette manche
+      // (nécessaire si on a modifié une manche passée)
+      recalcHistoryFrom(round - 1);
+
+      updateScoresAndLeaderboard();
+      if (checkWinnerAtEndOfRound()) return;
+
+      // Restaurer les inputs de la manche suivante si elle existe déjà
+      roundPending = roundInputHistory[round]
+        ? [...roundInputHistory[round]]
+        : players.map(() => null);
+
+      round += 1;
+      roundNumber.textContent = round;
+      gameStatus.textContent = `Manche ${round - 1} terminée. Manche ${round} en cours.`;
+      renderPlayers();
+      updateScoresAndLeaderboard();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // Recalcule roundHistory à partir de la manche fromIdx (0-indexed) jusqu'à la dernière connue
+    function recalcHistoryFrom(fromIdx) {
+      for (let m = fromIdx; m < roundInputHistory.length; m++) {
+        const inputs = roundInputHistory[m];
+        if (!inputs) break;
+        const prev = m > 0 ? (roundHistory[m - 1] || players.map(() => 0)) : players.map(() => 0);
+        roundHistory[m] = players.map((_, i) => {
+          const v = inputs[i];
+          return prev[i] + (v !== null && v !== undefined ? v : 0);
+        });
+      }
+    }
+
+    function prevRound() {
+      if (round <= 1 && !gameOver) return;
+
+      if (gameOver) {
+        // La victoire a été déclenchée à la fin de la manche `round`.
+        // On reste sur la manche `round` mais on restaure sa saisie.
+        gameOver = false;
+        startChrono();
+        winnerPanel.classList.add('hidden');
+        nextRoundBtnBottom.classList.remove('hidden');
+        // Restaurer les inputs de cette manche
+        roundPending = roundInputHistory[round - 1]
+          ? [...roundInputHistory[round - 1]]
+          : players.map(() => null);
+        setInputsDisabled(false);
+        gameStatus.textContent = `Manche ${round} en cours.`;
+        renderPlayers();
+        updateScoresAndLeaderboard();
+        return;
+      }
+
+      if (round <= 1) return;
+
+      // Sauvegarder le pending courant avant de reculer
+      roundInputHistory[round - 1] = [...roundPending];
+
+      round -= 1;
+      roundNumber.textContent = round;
+
+      // Restaurer les inputs de la manche précédente
+      roundPending = roundInputHistory[round - 1]
+        ? [...roundInputHistory[round - 1]]
+        : players.map(() => null);
+
+      nextRoundBtnBottom.classList.remove('hidden');
+      gameStatus.textContent = `Manche ${round} en cours.`;
+      renderPlayers();
+      updateScoresAndLeaderboard();
+    }
+
+    // ---- Setup ----
+
+    function startFromSetup() {
+      const count = selectedPlayerCount;
+      players = [];
+      let hasEmpty = false;
+      for (let i = 0; i < count; i++) {
+        const input = document.getElementById(`playerName${i}`);
+        if (!input || !input.value.trim()) {
+          hasEmpty = true;
+          if (input) {
+            input.style.borderColor = '#ef4444';
+            input.style.boxShadow = '0 0 0 2px rgba(239,68,68,.3)';
+            input.placeholder = 'Nom requis !';
+          }
+        } else {
+          if (input) { input.style.borderColor = ''; input.style.boxShadow = ''; }
+          players.push({ name: input.value.trim() });
+        }
+      }
+      if (hasEmpty) return;
+      roundPending = players.map(() => null);
+      roundHistory = [];
+      roundInputHistory = [];
+      gameOver = false;
+      round = 1;
+      roundNumber.textContent = round;
+      setupSection.classList.add('hidden');
+      gameView.classList.remove('hidden');
+      winnerPanel.classList.add('hidden');
+      nextRoundBtnBottom.classList.remove('hidden');
+      gameStatus.textContent = 'La partie est en cours.';
+      startChrono();
+      renderPlayers();
+      updateScoresAndLeaderboard();
+    }
+
+    function restartSamePlayers() {
+      roundPending = players.map(() => null);
+      roundHistory = [];
+      roundInputHistory = [];
+      gameOver = false;
+      round = 1;
+      roundNumber.textContent = round;
+      winnerPanel.classList.add('hidden');
+      nextRoundBtnBottom.classList.remove('hidden');
+      gameStatus.textContent = 'La partie est relancée avec les mêmes joueurs.';
+      renderPlayers();
+      updateScoresAndLeaderboard();
+      startChrono();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function backHome() {
+      players = [];
+      roundPending = [];
+      roundHistory = [];
+      roundInputHistory = [];
+      gameOver = false;
+      round = 1;
+      roundNumber.textContent = round;
+      winnerPanel.classList.add('hidden');
+      gameView.classList.add('hidden');
+      setupSection.classList.remove('hidden');
+      stopChrono();
+      updateLeaderboard();
+      renderPlayerInputs();
+      playerNameInputs.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    // ---- Écran d'accueil ----
 
     function renderPlayerInputs() {
       const count = selectedPlayerCount;
@@ -559,6 +993,13 @@
             input.placeholder = `Joueur ${i + 1}`;
           }
         });
+        input.addEventListener('keydown', (e) => {
+          if (e.key !== 'Enter') return;
+          e.preventDefault();
+          const next = document.getElementById(`playerName${i + 1}`);
+          if (next) { next.focus(); next.select(); }
+          else document.getElementById('startGameBtn')?.focus();
+        });
         playerNameInputs.appendChild(input);
       }
       renderKnownPlayers();
@@ -579,11 +1020,7 @@
       const list = document.getElementById('knownPlayersList');
       const trashBtn = document.getElementById('trashModeBtn');
       const sortBtn = document.getElementById('sortModeBtn');
-      if (!knownPlayers.length) {
-        block.classList.add('hidden');
-        trashMode = false;
-        return;
-      }
+      if (!knownPlayers.length) { block.classList.add('hidden'); trashMode = false; return; }
       block.classList.remove('hidden');
       if (trashBtn) trashBtn.classList.toggle('active', trashMode);
       if (sortBtn) {
@@ -592,9 +1029,7 @@
         sortBtn.title = sortByRecent ? 'Tri : récent — cliquer pour alphabétique' : 'Tri : alphabétique — cliquer pour récent';
       }
       const sorted = [...knownPlayers].sort((a, b) => {
-        if (sortByRecent) {
-          return (knownPlayersUsage[b] || 0) - (knownPlayersUsage[a] || 0);
-        }
+        if (sortByRecent) return (knownPlayersUsage[b] || 0) - (knownPlayersUsage[a] || 0);
         return a.localeCompare(b, 'fr', { sensitivity: 'base' });
       });
       list.innerHTML = '';
@@ -625,18 +1060,12 @@
             if (usedNow.includes(name)) {
               for (let i = 0; i < count; i++) {
                 const input = document.getElementById(`playerName${i}`);
-                if (input && input.value === name) {
-                  input.value = '';
-                  break;
-                }
+                if (input && input.value === name) { input.value = ''; break; }
               }
             } else {
               for (let i = 0; i < count; i++) {
                 const input = document.getElementById(`playerName${i}`);
-                if (input && input.value.trim() === '') {
-                  input.value = name;
-                  break;
-                }
+                if (input && input.value.trim() === '') { input.value = name; break; }
               }
             }
             renderKnownPlayers();
@@ -645,8 +1074,6 @@
         list.appendChild(chip);
       });
     }
-
-    let leaderboardSortAlpha = false;
 
     document.getElementById('trashModeBtn').addEventListener('click', () => {
       trashMode = !trashMode;
@@ -658,258 +1085,111 @@
       renderKnownPlayers();
     });
 
-    document.getElementById('leaderboardTitle').addEventListener('click', () => {
-      leaderboardSortAlpha = !leaderboardSortAlpha;
-      updateLeaderboard();
-    });
 
-    function updateLeaderboard() {
-      // Calcul des rangs toujours basé sur le score
-      const byScore = [...players].sort((a, b) => b.score - a.score);
-      const rankMap = new Map();
-      byScore.forEach((p, i) => rankMap.set(p, i + 1));
+    // ---- Tableau détail des manches ----
 
-      // Affichage selon le tri choisi
-      const displayed = leaderboardSortAlpha
-        ? [...players].sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }))
-        : byScore;
+    function updateDetailTable() {
+      const table = document.getElementById('detailTable');
+      if (!table) return;
+      table.innerHTML = '';
 
-      leaderboardList.innerHTML = '';
-      displayed.forEach((player) => {
-        const item = document.createElement('div');
-        item.className = 'leaderboard-item';
-        const pct = Math.min(Math.max(player.score, 0), 200) / 2;
-        const playerColor = PLAYER_COLORS[players.indexOf(player) % PLAYER_COLORS.length];
-        const rank = rankMap.get(player);
-        item.innerHTML = `
-          <div class="leaderboard-progress" style="width:${pct}%"></div>
-          <span class="leaderboard-rank">${rank}.</span>
-          <span class="leaderboard-name" style="color:${playerColor}">${player.name}</span>
-          <span class="leaderboard-score">${player.score}</span>
-        `;
-        leaderboardList.appendChild(item);
-      });
-    }
+      const totalRounds = roundInputHistory.length;
+      const transpose = players.length >= 10;
 
-    function updateScores() {
-      players.forEach((p, i) => {
-        const el = document.getElementById(`score-${i}`);
-        if (el) el.textContent = p.score;
-      });
-    }
+      function deltaCell(v, cumul) {
+        const td = document.createElement('td');
+        const deltaStr = (v !== null && v !== undefined) ? (v >= 0 ? '+' + v : v) : '—';
+        const cumulStr = (cumul !== null && cumul !== undefined) ? ` (${cumul})` : '';
+        td.innerHTML = `<span style="color:${v > 0 ? '#4ade80' : v < 0 ? '#f87171' : '#94a3b8'}">${deltaStr}</span><span style="color:#64748b;font-size:.78rem">${cumulStr}</span>`;
+        return td;
+      }
 
-    function updateScoresAndLeaderboard() {
-      updateScores();
-      updateLeaderboard();
-    }
+      if (!transpose) {
+        // Mode normal : joueurs en colonnes, manches en lignes
+        const thead = document.createElement('thead');
+        const headerRow = document.createElement('tr');
+        const thRound = document.createElement('th');
+        thRound.textContent = 'Manche';
+        headerRow.appendChild(thRound);
+        players.forEach((p, i) => {
+          const th = document.createElement('th');
+          th.className = 'player-th';
+          th.style.color = PLAYER_COLORS[i % PLAYER_COLORS.length];
+          th.textContent = p.name;
+          th.title = p.name;
+          headerRow.appendChild(th);
+        });
+        thead.appendChild(headerRow);
+        table.appendChild(thead);
 
-    function checkWinnerAtEndOfRound() {
-      const eligible = players.filter(p => p.score >= 200);
-      if (!eligible.length) return false;
-      const topScore = Math.max(...players.map(p => p.score));
-      const winners = players.filter(p => p.score === topScore);
-      gameOver = true;
-      stopChrono();
-      setInputsDisabled(true);
-      const now = Date.now();
-      players.forEach(p => {
-        if (!knownPlayers.includes(p.name)) knownPlayers.push(p.name);
-        knownPlayersUsage[p.name] = now;
-      });
-      localStorage.setItem('flip7_known_players', JSON.stringify(knownPlayers));
-      localStorage.setItem('flip7_known_usage', JSON.stringify(knownPlayersUsage));
-      winnerPanel.classList.remove('hidden');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      nextRoundBtnBottom.classList.add('hidden');
-      if (winners.length === 1) {
-        winnerText.textContent = `🎉 Partie terminée. Gagnant : ${winners[0].name} avec ${topScore} points !`;
+        const tbody = document.createElement('tbody');
+        for (let m = 0; m < totalRounds; m++) {
+          const inputs = roundInputHistory[m];
+          if (!inputs) continue;
+          const scores = roundHistory[m];
+          const isCurrent = (m === round - 1);
+          const row = document.createElement('tr');
+          if (isCurrent) row.className = 'current-round';
+          const tdLabel = document.createElement('td');
+          tdLabel.className = 'round-label';
+          tdLabel.textContent = `${m + 1}`;
+          row.appendChild(tdLabel);
+          players.forEach((_, i) => {
+            row.appendChild(deltaCell(inputs[i], scores ? scores[i] : null));
+          });
+          tbody.appendChild(row);
+        }
+        table.appendChild(tbody);
+
       } else {
-        const names = winners.map(w => w.name).join(', ');
-        winnerText.textContent = `🎉 Partie terminée. Égalité ! Gagnants : ${names} avec ${topScore} points.`;
-      }
-      gameStatus.textContent = 'La partie est terminée.';
-      return true;
-    }
-
-    function nextRound() {
-      if (gameOver) return;
-      const baseScores = players.map((p, i) =>
-        p.score - (roundPending[i] !== undefined ? roundPending[i] : 0)
-      );
-      lastRoundScores = baseScores;
-      players.forEach((p, i) => { p.score = baseScores[i]; });
-      players.forEach((_, i) => {
-        const input = document.getElementById(`round-${i}`);
-        const inputVal = input ? parseInt(input.value, 10) : NaN;
-        const val = !Number.isNaN(inputVal) ? inputVal : (roundPending[i] !== undefined ? roundPending[i] : undefined);
-        if (val !== undefined) {
-          players[i].score += val;
-          if (input) input.value = '';
+        // Mode transposé : manches en colonnes, joueurs en lignes
+        const thead = document.createElement('thead');
+        const headerRow = document.createElement('tr');
+        const thPlayer = document.createElement('th');
+        thPlayer.textContent = 'Joueur';
+        headerRow.appendChild(thPlayer);
+        for (let m = 0; m < totalRounds; m++) {
+          if (!roundInputHistory[m]) continue;
+          const th = document.createElement('th');
+          th.className = 'round-label';
+          th.textContent = `${m + 1}`;
+          th.style.color = (m === round - 1) ? '#60a5fa' : '';
+          headerRow.appendChild(th);
         }
-      });
-      roundPending = [];
-      updateScoresAndLeaderboard();
-      if (checkWinnerAtEndOfRound()) return;
-      round += 1;
-      roundNumber.textContent = round;
-      gameStatus.textContent = `Manche ${round - 1} terminée. Manche ${round} en cours.`;
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+        thead.appendChild(headerRow);
+        table.appendChild(thead);
 
-    window.applyRoundPoints = function(index) {
-      if (gameOver) return;
-      const input = document.getElementById(`round-${index}`);
-      const value = parseInt(input.value, 10);
-      if (Number.isNaN(value)) return;
-      input.value = '';
-      if (roundPending[index] !== undefined) {
-        players[index].score -= roundPending[index];
-      }
-      roundPending[index] = value;
-      players[index].score += value;
-      updateScores();
-    };
-
-    window.addRoundPoints = function(index) {
-      applyRoundPoints(index);
-    };
-
-    window.subtractRoundPoints = function(index) {
-      if (gameOver) return;
-      const input = document.getElementById(`round-${index}`);
-      const value = parseInt(input.value, 10);
-      if (Number.isNaN(value)) return;
-      input.value = '';
-      if (roundPending[index] !== undefined) {
-        players[index].score -= roundPending[index];
-      }
-      roundPending[index] = -value;
-      players[index].score -= value;
-      updateScores();
-    };
-
-    function renderPlayers() {
-      playersGrid.innerHTML = '';
-      players.forEach((player, index) => {
-        const color = PLAYER_COLORS[index % PLAYER_COLORS.length];
-        const card = document.createElement('div');
-        card.className = 'player-card';
-        card.innerHTML = `
-          <div class="round-row">
-            <div class="player-name" style="color:${color}" title="${player.name}">${player.name}</div>
-            <input class="round-input" type="number" step="1" id="round-${index}" placeholder="Points">
-            <button class="small-btn small-add" type="button" onclick="addRoundPoints(${index})">+</button>
-            <button class="small-btn small-sub" type="button" onclick="subtractRoundPoints(${index})">-</button>
-            <div class="player-score" id="score-${index}">${player.score}</div>
-          </div>
-        `;
-        playersGrid.appendChild(card);
-        const input = card.querySelector(`#round-${index}`);
-        input.addEventListener('input', () => {
-          const val = parseInt(input.value, 10);
-          const el = document.getElementById(`score-${index}`);
-          if (!el) return;
-          const baseScore = players[index].score - (roundPending[index] !== undefined ? roundPending[index] : 0);
-          if (Number.isNaN(val)) {
-            el.textContent = players[index].score;
-          } else {
-            el.textContent = baseScore + val;
+        const tbody = document.createElement('tbody');
+        players.forEach((p, i) => {
+          const row = document.createElement('tr');
+          const tdName = document.createElement('td');
+          tdName.className = 'round-label player-th';
+          tdName.style.color = PLAYER_COLORS[i % PLAYER_COLORS.length];
+          tdName.textContent = p.name;
+          tdName.title = p.name;
+          row.appendChild(tdName);
+          for (let m = 0; m < totalRounds; m++) {
+            const inputs = roundInputHistory[m];
+            if (!inputs) continue;
+            const scores = roundHistory[m];
+            const td = deltaCell(inputs[i], scores ? scores[i] : null);
+            if (m === round - 1) td.style.background = 'rgba(37,99,235,.12)';
+            row.appendChild(td);
           }
+          tbody.appendChild(row);
         });
-        input.addEventListener('keydown', (e) => {
-          if (e.key !== 'Enter') return;
-          e.preventDefault();
-          applyRoundPoints(index);
-          const nextInput = document.getElementById(`round-${index + 1}`);
-          if (nextInput) {
-            nextInput.focus();
-            nextInput.select();
-          }
-        });
-      });
-    }
-
-
-    function setInputsDisabled(disabled) {
-      players.forEach((_, i) => {
-        const input = document.getElementById(`round-${i}`);
-        const addBtn = document.querySelector(`[onclick="addRoundPoints(${i})"]`);
-        const subBtn = document.querySelector(`[onclick="subtractRoundPoints(${i})"]`);
-        if (input) input.disabled = disabled;
-        if (addBtn) addBtn.disabled = disabled;
-        if (subBtn) subBtn.disabled = disabled;
-        if (input) input.style.opacity = disabled ? '0.4' : '';
-        if (addBtn) addBtn.style.opacity = disabled ? '0.4' : '';
-        if (subBtn) subBtn.style.opacity = disabled ? '0.4' : '';
-      });
-    }
-
-    function startFromSetup() {
-      const count = selectedPlayerCount;
-      players = [];
-      let hasEmpty = false;
-      for (let i = 0; i < count; i++) {
-        const input = document.getElementById(`playerName${i}`);
-        if (!input || !input.value.trim()) {
-          hasEmpty = true;
-          if (input) {
-            input.style.borderColor = '#ef4444';
-            input.style.boxShadow = '0 0 0 2px rgba(239,68,68,.3)';
-            input.placeholder = 'Nom requis !';
-          }
-        } else {
-          if (input) {
-            input.style.borderColor = '';
-            input.style.boxShadow = '';
-          }
-          players.push({ name: input.value.trim(), score: 0 });
-        }
+        table.appendChild(tbody);
       }
-      if (hasEmpty) return;
-      roundPending = [];
-      gameOver = false;
-      round = 1;
-      roundNumber.textContent = round;
-      setupSection.classList.add('hidden');
-      gameView.classList.remove('hidden');
-      winnerPanel.classList.add('hidden');
-      nextRoundBtnBottom.classList.remove('hidden');
-      gameStatus.textContent = 'La partie est en cours.';
-      startChrono();
-      renderPlayers();
-      updateScoresAndLeaderboard();
     }
 
-    function restartSamePlayers() {
-      players = players.map(p => ({ name: p.name, score: 0 }));
-      gameOver = false;
-      round = 1;
-      roundNumber.textContent = round;
-      roundPending = [];
-      winnerPanel.classList.add('hidden');
-      nextRoundBtnBottom.classList.remove('hidden');
-      gameStatus.textContent = 'La partie est relancée avec les mêmes joueurs.';
-      renderPlayers();
-      updateScoresAndLeaderboard();
-      startChrono();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
-    function backHome() {
-      players = [];
-      gameOver = false;
-      round = 1;
-      roundNumber.textContent = round;
-      roundPending = [];
-      winnerPanel.classList.add('hidden');
-      gameView.classList.add('hidden');
-      setupSection.classList.remove('hidden');
-      stopChrono();
-      updateLeaderboard();
-      renderPlayerInputs();
-      playerNameInputs.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-
+    document.getElementById('detailToggle').addEventListener('click', () => {
+      const body = document.getElementById('detailBody');
+      const chevron = document.getElementById('detailChevron');
+      const isHidden = body.classList.contains('hidden');
+      body.classList.toggle('hidden', !isHidden);
+      chevron.classList.toggle('open', isHidden);
+      if (isHidden) updateDetailTable();
+    });
     document.querySelectorAll('.player-count-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         selectedPlayerCount = parseInt(btn.dataset.count, 10);
@@ -922,34 +1202,10 @@
     startGameBtn.onclick = startFromSetup;
     restartSameBtn.onclick = restartSamePlayers;
     backHomeBtn.onclick = backHome;
-
-    function cancelLastRound() {
-      if (!lastRoundScores.length) return;
-      players.forEach((p, i) => { p.score = lastRoundScores[i]; });
-      lastRoundScores = [];
-      roundPending = [];
-      if (gameOver) {
-        gameOver = false;
-        startChrono();
-        winnerPanel.classList.add('hidden');
-        setInputsDisabled(false);
-      }
-      if (round > 1) {
-        round -= 1;
-        roundNumber.textContent = round;
-      }
-      nextRoundBtnBottom.classList.remove('hidden');
-      gameStatus.textContent = `Manche ${round} en cours.`;
-      updateScoresAndLeaderboard();
-      renderPlayers();
-    }
-
-    cancelRoundBtn.onclick = cancelLastRound;
-    cancelRoundBtnBottom.onclick = cancelLastRound;
+    cancelRoundBtn.onclick = prevRound;
+    cancelRoundBtnBottom.onclick = prevRound;
     roundPill.onclick = nextRound;
     nextRoundBtnBottom.onclick = nextRound;
 
     renderPlayerInputs();
   </script>
-</body>
-</html>
