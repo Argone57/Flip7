@@ -28,9 +28,8 @@
       background:linear-gradient(180deg,#07101c 0%, #0f172a 45%, #111827 100%);
       color:var(--text);
       font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
-      overflow-x:clip;
     }
-    body{min-height:100dvh}
+    body{overflow-x:hidden; min-height:100dvh}
     .app{
       width:min(1200px,100%);
       margin:0 auto;
@@ -352,57 +351,43 @@
 
     .detail-section{
       margin-top:12px;
-      background:rgba(15,23,42,.8);
-      border:1px solid rgba(51,65,85,.6);
-      border-radius:14px;
+      background:rgba(15,23,42,.72);
+      border:1px solid rgba(51,65,85,.9);
+      border-radius:var(--radius);
+      padding:0;
+      overflow:hidden;
     }
     .detail-title{
       display:flex;
       justify-content:space-between;
       align-items:center;
-      padding:10px 14px;
+      padding:12px 16px;
       cursor:pointer;
       user-select:none;
-      font-weight:800;
+      font-weight:900;
       font-size:.95rem;
       color:#94a3b8;
-      transition:background .15s;
-      border-radius:14px;
     }
     .detail-title:hover{background:rgba(51,65,85,.2)}
-    .detail-chevron{font-size:.75rem; transition:transform .2s; color:#64748b}
-    .detail-chevron.open{transform:rotate(90deg)}
-    .detail-body{padding:10px 12px 12px; min-width:0}
-    .detail-table-outer{
-      position:relative;
-      width:100%;
-      min-width:0;
-    }
-    .detail-table-wrap{
-      position:relative;
-      overflow-x:scroll;
-      overflow-y:visible;
-      -webkit-overflow-scrolling:touch;
-      scrollbar-width:thin;
-      scrollbar-color:rgba(100,116,139,.6) transparent;
-      /* Force le scroll à rester dans ce bloc */
-      max-width:100%;
-      box-sizing:border-box;
-    }
-    .detail-table-wrap::-webkit-scrollbar{height:6px}
-    .detail-table-wrap::-webkit-scrollbar-track{background:rgba(15,23,42,.4); border-radius:3px}
-    .detail-table-wrap::-webkit-scrollbar-thumb{background:rgba(100,116,139,.6); border-radius:3px}
+    .detail-chevron{color:#94a3b8; transition:transform .25s; font-size:1rem}
+    .detail-chevron.open{transform:rotate(180deg)}
+    .detail-body{display:none; padding:0 12px 12px}
+    .detail-body.open{display:block}
     .detail-table{
       width:max-content;
+      min-width:100%;
       border-collapse:collapse;
       font-size:.82rem;
     }
     .detail-table th{
-      padding:5px 10px;
+      padding:6px 8px;
       text-align:center;
-      font-weight:800;
       color:#64748b;
-      border-bottom:1px solid rgba(51,65,85,.6);
+      font-weight:700;
+      border-bottom:1px solid rgba(51,65,85,.7);
+      position:sticky;
+      top:0;
+      background:rgba(15,23,42,.95);
       white-space:nowrap;
     }
     .detail-table th.player-th{
@@ -411,24 +396,23 @@
       text-overflow:ellipsis;
     }
     .detail-table td{
-      padding:5px 10px;
+      padding:5px 8px;
       text-align:center;
-      border-bottom:1px solid rgba(51,65,85,.25);
-      color:#e5e7eb;
+      border-bottom:1px solid rgba(51,65,85,.3);
       font-weight:700;
     }
     .detail-table td.round-label{
       color:#64748b;
       font-weight:800;
       white-space:nowrap;
-    }
-    .detail-table td.cumul{
-      color:#94a3b8;
-      font-size:.78rem;
+      font-variant-numeric:tabular-nums;
+      font-family:ui-monospace,monospace;
     }
     .detail-table tr.current-round td{
-      background:rgba(37,99,235,.12);
+      background:rgba(34,197,94,.08);
+      border-bottom:1px solid rgba(34,197,94,.2);
     }
+    .detail-table tr.current-round td.round-label{color:var(--accent-green)}
     .detail-table tr:last-child td{border-bottom:none}
   </style>
 </head>
@@ -518,17 +502,17 @@
           <button class="btn btn-prev-round" id="cancelRoundBtnBottom">Manche précédente</button>
         </div>
 
-        <div class="detail-section" id="detailSection">
-          <div class="detail-title" id="detailToggle">
-            <span>📋 Détail des manches</span>
-            <span class="detail-chevron" id="detailChevron">▶</span>
-          </div>
-          <div class="detail-body hidden" id="detailBody">
-            <div class="detail-table-outer">
-              <div class="detail-table-wrap">
-                <table class="detail-table" id="detailTable"></table>
-              </div>
-            </div>
+      </div>
+
+      <!-- Détail des manches -->
+      <div class="detail-section" id="detailSection">
+        <div class="detail-title" id="detailToggle">
+          <span>📋 Détail des manches</span>
+          <span class="detail-chevron" id="detailChevron">▼</span>
+        </div>
+        <div class="detail-body" id="detailBody">
+          <div style="overflow-x:auto;">
+            <table class="detail-table" id="detailTable"></table>
           </div>
         </div>
       </div>
@@ -773,7 +757,7 @@
       updateScores();
       updateLeaderboard();
       const body = document.getElementById('detailBody');
-      if (body && !body.classList.contains('hidden')) updateDetailTable();
+      if (body && body.classList.contains('open')) updateDetailTable();
     }
 
     document.getElementById('leaderboardTitle').addEventListener('click', () => {
@@ -839,6 +823,7 @@
       round += 1;
       roundNumber.textContent = round;
       gameStatus.textContent = `Manche ${round - 1} terminée. Manche ${round} en cours.`;
+      initCurrentRoundInHistory();
       renderPlayers();
       updateScoresAndLeaderboard();
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -854,6 +839,13 @@
           const v = inputs[i];
           return prev[i] + (v !== null && v !== undefined ? v : 0);
         });
+      }
+    }
+
+    // Initialise une entrée vide pour la manche courante dans l'historique si elle n'existe pas
+    function initCurrentRoundInHistory() {
+      if (!roundInputHistory[round - 1]) {
+        roundInputHistory[round - 1] = players.map(() => null);
       }
     }
 
@@ -930,6 +922,7 @@
       nextRoundBtnBottom.classList.remove('hidden');
       gameStatus.textContent = 'La partie est en cours.';
       startChrono();
+      initCurrentRoundInHistory();
       renderPlayers();
       updateScoresAndLeaderboard();
     }
@@ -944,6 +937,7 @@
       winnerPanel.classList.add('hidden');
       nextRoundBtnBottom.classList.remove('hidden');
       gameStatus.textContent = 'La partie est relancée avec les mêmes joueurs.';
+      initCurrentRoundInHistory();
       renderPlayers();
       updateScoresAndLeaderboard();
       startChrono();
@@ -1185,10 +1179,10 @@
     document.getElementById('detailToggle').addEventListener('click', () => {
       const body = document.getElementById('detailBody');
       const chevron = document.getElementById('detailChevron');
-      const isHidden = body.classList.contains('hidden');
-      body.classList.toggle('hidden', !isHidden);
-      chevron.classList.toggle('open', isHidden);
-      if (isHidden) updateDetailTable();
+      const isOpen = body.classList.contains('open');
+      body.classList.toggle('open', !isOpen);
+      chevron.classList.toggle('open', !isOpen);
+      if (!isOpen) updateDetailTable();
     });
     document.querySelectorAll('.player-count-btn').forEach(btn => {
       btn.addEventListener('click', () => {
