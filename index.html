@@ -694,7 +694,16 @@
         `;
         playersGrid.appendChild(card);
         const input = card.querySelector(`#round-${index}`);
-        input.addEventListener('focus', () => input.select());
+        input.addEventListener('focus', () => {
+  input.select();
+  setTimeout(() => {
+    input.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center',
+      inline: 'nearest'
+    });
+  }, 250);
+});
         input.addEventListener('input', () => {
           const val = parseInt(input.value, 10);
           const el = document.getElementById(`score-${index}`);
