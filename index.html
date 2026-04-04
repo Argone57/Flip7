@@ -102,12 +102,6 @@
       gap:10px;
     }
     .layout-play{display:grid; gap:12px}
-    .top-bar-panel{
-      background:rgba(15,23,42,.72);
-      border:1px solid rgba(51,65,85,.95);
-      border-radius:var(--radius);
-      padding:12px;
-    }
     .scores-panel,.winner-panel{
       background:rgba(15,23,42,.72);
       border:1px solid rgba(51,65,85,.95);
@@ -115,18 +109,7 @@
       padding:12px;
     }
     .topbar{display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap}
-    .pill{
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      padding:8px 12px;
-      border-radius:999px;
-      background:rgba(2,6,23,.35);
-      border:1px solid rgba(51,65,85,.95);
-      font-weight:800;
-      cursor:pointer;
-    }
-    .pill:hover{background:rgba(51,65,85,.4)}
+
     .chrono-btn{
       min-width:90px;
       padding:10px 16px;
@@ -223,7 +206,7 @@
     .leaderboard-grid{
       display:grid;
       gap:3px;
-      grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+      grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
     }
     .leaderboard-item{
       position:relative;
@@ -345,7 +328,6 @@
       .app{padding:8px; gap:8px}
       .section{padding:10px}
       .players-grid{grid-template-columns:1fr}
-      .leaderboard-grid{grid-template-columns:1fr}
       .leaderboard-item{font-size:.85rem; padding:4px 6px}
     }
 
@@ -370,7 +352,7 @@
     }
     .detail-title:hover{background:rgba(51,65,85,.2)}
     .detail-chevron{color:#94a3b8; transition:transform .25s; font-size:1rem}
-    .detail-chevron.open{transform:rotate(180deg)}
+    .detail-chevron.open{transform:rotate(90deg)}
     .detail-body{display:none; padding:0 12px 12px}
     .detail-body.open{display:block}
     .detail-table{
@@ -482,14 +464,6 @@
 
     <div class="layout-play hidden" id="gameView">
 
-      <!-- Barre de manche + chrono -->
-      <div class="top-bar-panel">
-        <div class="topbar">
-          <div class="pill" id="roundPill">Manche <span id="roundNumber">1</span></div>
-          <button class="chrono-btn" id="chronoBtn" type="button">0 min</button>
-        </div>
-      </div>
-
       <!-- Panel gagnant -->
       <div class="winner-panel hidden" id="winnerPanel">
         <div class="winner-title" id="winnerText"></div>
@@ -502,10 +476,11 @@
 
       <!-- Scores -->
       <div class="scores-panel">
-        <div class="scores-header">
-          <h2>Scores des joueurs</h2>
-          <div class="game-status" id="gameStatus">La partie est en cours.</div>
+        <div class="scores-header" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:nowrap;margin-bottom:8px;">
+          <h2 style="margin:0;flex:1;min-width:0;">Scores des joueurs — Manche <span id="roundNumber">1</span></h2>
+          <button class="chrono-btn" id="chronoBtn" type="button" style="flex-shrink:0;">0 min</button>
         </div>
+        <div class="game-status" id="gameStatus" style="margin-bottom:8px;">La partie est en cours.</div>
 
         <div id="leaderboardSection" class="leaderboard-section">
           <div class="leaderboard-title" id="leaderboardTitle" style="cursor:pointer; user-select:none;" title="Changer le tri du classement">🏆 Classement actuel</div>
@@ -525,7 +500,7 @@
       <div class="detail-section" id="detailSection">
         <div class="detail-title" id="detailToggle">
           <span>📋 Détail des manches</span>
-          <span class="detail-chevron" id="detailChevron">▼</span>
+          <span class="detail-chevron" id="detailChevron">▶</span>
         </div>
         <div class="detail-body" id="detailBody">
           <div style="overflow-x:auto;">
@@ -549,7 +524,6 @@
     const restartSameBtn = document.getElementById('restartSameBtn');
     const backHomeBtn = document.getElementById('backHomeBtn');
     const cancelRoundBtn = document.getElementById('cancelRoundBtn');
-    const roundPill = document.getElementById('roundPill');
     const roundNumber = document.getElementById('roundNumber');
     const leaderboardSection = document.getElementById('leaderboardSection');
     const leaderboardList = document.getElementById('leaderboardList');
@@ -1202,7 +1176,6 @@
     backHomeBtn.onclick = backHome;
     cancelRoundBtn.onclick = prevRound;
     cancelRoundBtnBottom.onclick = prevRound;
-    roundPill.onclick = nextRound;
     nextRoundBtnBottom.onclick = nextRound;
 
     renderPlayerInputs();
