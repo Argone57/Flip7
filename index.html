@@ -547,7 +547,7 @@
     let knownPlayers = JSON.parse(localStorage.getItem('flip7_known_players') || '[]');
     let knownPlayersUsage = JSON.parse(localStorage.getItem('flip7_known_usage') || '{}');
     let trashMode = false;
-    let sortByRecent = false;
+    let sortByRecent = true;
 
     // Historique complet : roundHistory[m][i] = score du joueur i à la fin de la manche m (0-indexed)
     // roundHistory[m] est un tableau de scores CUMULÉS après la manche m
