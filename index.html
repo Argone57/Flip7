@@ -503,13 +503,7 @@
       color:#fff;
     }
 
-    .calc-count-badge{
-      position:absolute; top:-5px; right:-5px;
-      width:18px; height:18px; border-radius:50%;
-      background:#22c55e; color:#0b1220; font-size:.65rem; font-weight:900;
-      display:none; align-items:center; justify-content:center;
-    }
-    .calc-card.selected .calc-count-badge{ display:flex; }
+
 
     .calc-btn-icon.calc-used{
       background:rgba(34,197,94,.25);
@@ -1337,21 +1331,21 @@
 
     // ── Calculateur de score Flip 7 ──
     const CALC_NUMBER_CARDS = [
-      { value: 0,  label: '0',   bg: '#e91e8c', textColor: '#fff' },
-      { value: 1,  label: '1',   bg: '#9c27b0', textColor: '#fff' },
-      { value: 2,  label: '2',   bg: '#c8d400', textColor: '#1a1200' },
-      { value: 3,  label: '3',   bg: '#e53935', textColor: '#fff' },
-      { value: 4,  label: '4',   bg: '#29b6f6', textColor: '#0a1929' },
-      { value: 5,  label: '5',   bg: '#43a047', textColor: '#fff' },
-      { value: 6,  label: '6',   bg: '#8e24aa', textColor: '#fff' },
-      { value: 7,  label: '7',   bg: '#f06292', textColor: '#fff' },
-      { value: 8,  label: '8',   bg: '#ff7043', textColor: '#fff' },
-      { value: 9,  label: '9',   bg: '#ff9800', textColor: '#1a1200' },
-      { value: 10, label: '10',  bg: '#e53935', textColor: '#fff' },
-      { value: 11, label: '11',  bg: '#1565c0', textColor: '#fff' },
-      { value: 12, label: '12',  bg: '#37474f', textColor: '#fff' },
-      { value: 13, label: '13',  bg: '#1565c0', textColor: '#fff' },
-      { value: 13, label: '13✶', bg: 'linear-gradient(135deg,#e91e8c,#9c27b0,#2196f3,#43a047,#ff9800)', textColor: '#fff' },
+      { value: 0,  label: '0',   bg: '#e91e8c', textColor: '#fff' },          // conservé
+      { value: 1,  label: '1',   bg: '#b0a0b8', textColor: '#fff' },          // gris-mauve
+      { value: 2,  label: '2',   bg: '#b8c820', textColor: '#1a1200' },       // jaune-vert
+      { value: 3,  label: '3',   bg: '#e83060', textColor: '#fff' },          // rouge-rose
+      { value: 4,  label: '4',   bg: '#3fbfcf', textColor: '#0a1929' },       // bleu-cyan
+      { value: 5,  label: '5',   bg: '#3aaa5a', textColor: '#fff' },          // vert émeraude
+      { value: 6,  label: '6',   bg: '#9b3f9e', textColor: '#fff' },          // violet
+      { value: 7,  label: '7',   bg: '#e8786a', textColor: '#fff' },          // conservé rose-saumon
+      { value: 8,  label: '8',   bg: '#5ab44a', textColor: '#fff' },          // vert
+      { value: 9,  label: '9',   bg: '#f5821f', textColor: '#fff' },          // orange
+      { value: 10, label: '10',  bg: '#e63022', textColor: '#fff' },          // rouge vif
+      { value: 11, label: '11',  bg: '#7b9fd4', textColor: '#0a1929' },       // bleu clair lavande
+      { value: 12, label: '12',  bg: '#7a6a5a', textColor: '#fff' },          // gris-brun
+      { value: 13, label: '13',  bg: '#1a6fc4', textColor: '#fff' },          // bleu (thirteen)
+      { value: 13, label: '13✶', bg: 'linear-gradient(135deg,#e91e8c,#9c27b0,#2196f3,#43a047,#ff9800)', textColor: '#fff' }, // lucky
     ];
     const CALC_BONUS_CARDS = [
       { value: 'x2', label: '×2',  bg: 'linear-gradient(160deg,#d97706,#b45309)', textColor: '#fff' },
@@ -1404,18 +1398,15 @@
       document.querySelectorAll('.calc-num-card').forEach((el, i) => {
         el.classList.toggle('selected', calcNumSel[i] > 0);
         el.classList.toggle('disabled-card', totalNum >= 7 && calcNumSel[i] === 0);
-        const badge = el.querySelector('.calc-count-badge');
-        if (badge) badge.textContent = calcNumSel[i];
+
       });
       document.querySelectorAll('.calc-bonus-card-el').forEach((el, i) => {
         el.classList.toggle('selected', calcBonusSel[i] > 0);
-        const badge = el.querySelector('.calc-count-badge');
-        if (badge) badge.textContent = calcBonusSel[i];
+
       });
       document.querySelectorAll('.calc-malus-card-el').forEach((el, i) => {
         el.classList.toggle('selected', calcMalusSel[i] > 0);
-        const badge = el.querySelector('.calc-count-badge');
-        if (badge) badge.textContent = calcMalusSel[i];
+
       });
       calcCompute();
     }
@@ -1427,7 +1418,7 @@
         const el = document.createElement('button');
         el.type = 'button'; el.className = 'calc-card calc-num-card';
         el.style.background = c.bg; el.style.color = c.textColor;
-        el.innerHTML = '<span>' + c.label + '</span><span class="calc-count-badge">' + calcNumSel[i] + '</span>';
+        el.innerHTML = '<span>' + c.label + '</span>';
         el.addEventListener('click', () => {
           const tot = calcNumSel.reduce((a, b) => a + b, 0);
           if (calcNumSel[i] > 0) calcNumSel[i]--;
@@ -1442,7 +1433,7 @@
         const el = document.createElement('button');
         el.type = 'button'; el.className = 'calc-card calc-bonus-card-el';
         el.style.background = c.bg; el.style.color = c.textColor;
-        el.innerHTML = '<span>' + c.label + '</span><span class="calc-count-badge">' + calcBonusSel[i] + '</span>';
+        el.innerHTML = '<span>' + c.label + '</span>';
         el.addEventListener('click', () => { calcBonusSel[i] = calcBonusSel[i] > 0 ? 0 : 1; calcUpdateUI(); });
         bonusGrid.appendChild(el);
       });
@@ -1452,7 +1443,7 @@
         const el = document.createElement('button');
         el.type = 'button'; el.className = 'calc-card calc-malus-card-el';
         el.style.background = c.bg; el.style.color = c.textColor;
-        el.innerHTML = '<span>' + c.label + '</span><span class="calc-count-badge">' + calcMalusSel[i] + '</span>';
+        el.innerHTML = '<span>' + c.label + '</span>';
         el.addEventListener('click', () => { calcMalusSel[i] = calcMalusSel[i] > 0 ? 0 : 1; calcUpdateUI(); });
         malusGrid.appendChild(el);
       });
